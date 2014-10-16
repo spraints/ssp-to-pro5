@@ -42,12 +42,17 @@ def consume(io)
   consumed.push :name => r.b_string
   consumed.push :byte => r.byte
   consumed.push :size718 => (size718 = r.int)
-  consumed.push :int => r.int
+  consumed.push :flags718 => (flags718 = r.int)
   if signature == 38
     if subsig == "0718"
-      consumed.push :int => r.int
-      consumed.push :copyright => r.string(size718 - 5).force_encoding("UTF-8")
+      if flags718 == 20
+        consumed.push :int => r.int
+        consumed.push :copyright => r.string(size718 - 5).force_encoding("UTF-8")
+      else
+        consumed.push :copyright => r.b_string.force_encoding("UTF-8")
+      end
     elsif subsig == "0707" && size718 > 4
+      consumed.push :copyright => r.b_string
     end
   else
     consumed.push :copyright => r.b_string
