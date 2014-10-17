@@ -48,19 +48,25 @@ def parse_io(io)
       elsif len == 1 && flags == 9
         # nothing
       elsif len == 5 && flags == 18
-        data.push int
+        return parsed if r.int == :eof
       else
+        if type == 34
+          io.pos -= 8
+        end
         break
+      end
+      if((type == 39 && data.size == 2) || type == 40)
+        return (parsed + [io.read.inspect])
       end
       if type == 37
         data.push r.byte
         data.push r.b_string
-        #data.push [r.byte, len]
-        #data.push io.read(len - 2).inspect
-        #data.push r.string(len - 1)
       end
     end
-    consumed << io.read(100).inspect
+    consumed.push(rest = [])
+    rest << io.pos
+    rest << io.size
+    rest << io.read(100).inspect
   rescue => e
     consumed.push([e.class.name, e.message] + e.backtrace)
   end
@@ -92,7 +98,7 @@ class ReadHelper
   attr_reader :io
 
   def string(len)
-    io.read(len).force_encoding("UTF-8")
+    guarded_read(len).force_encoding("UTF-8")
   end
 
   def tag
@@ -106,16 +112,39 @@ class ReadHelper
 
   def b_3_string
     len = byte
-    byte ; byte ; byte
-    string(len)
+    zeroes = [byte, byte, byte]
+    str = string(len)
+    if zeroes.any? { |n| n != 0 }
+      zeroes + [str]
+    else
+      str
+    end
   end
 
   def int
-    io.read(4).unpack("N").first
+    if _bytes_left == 3
+      :eof
+    else
+      guarded_read(4).unpack("N").first
+    end
   end
 
   def byte
-    io.read(1).unpack("C").first
+    guarded_read(1).unpack("C").first
+  end
+
+  def _bytes_left
+    io.size - io.pos
+  end
+
+  def guarded_read(len)
+    if _bytes_left >= len
+      io.read(len)
+    else
+      n = _bytes_left
+      s = io.read
+      raise "Tried to read #{len}, but only have #{n} bytes (#{s.inspect}) left"
+    end
   end
 end
 
