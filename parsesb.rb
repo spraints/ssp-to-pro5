@@ -40,29 +40,36 @@ def parse_io(io)
       parsed.push(data = [])
       data.push FieldNames[type] || type
       if flags == 6 || flags == 2
+        # Just a normal string value in this field.
         data.push(value = r.b_string)
         len = len - value.bytesize - 2
       elsif flags == 20
+        # A somewhat simple string field, though it has some extra padding.
         data.push(value = r.b_3_string)
         len = len - value.bytesize - 5
       elsif len == 1 && flags == 9
         # nothing
       elsif len == 5 && flags == 18
+        # yes! we made it to the end!
         return parsed if r.int == :eof
       else
         if type == 34
+          # This seems to be a field with a bunch of binary data / flags / background settings, etc.
           io.pos -= 8
         end
         break
       end
       if((type == 39 && data.size == 2) || type == 40)
+        # another variant of the end (probably), this time with the last field of the file.
         return (parsed + [io.read.inspect])
       end
       if type == 37
+        # Verses have a name plus the content of the verse.
         data.push r.byte
         data.push r.b_string
       end
     end
+    # If we stopped reading, put a snippet of it in the output so I can try to figure out what's next.
     consumed.push(rest = [])
     rest << io.pos
     rest << io.size
@@ -73,6 +80,7 @@ def parse_io(io)
   {:parsed => parsed, :consumed => consumed.reverse.take(10).reverse}
 end
 
+# Intercept calls to the real Reader so that I can see what things have come out of the IO.
 class LoggingReader
   def initialize(reader, log)
     @reader = reader
@@ -90,6 +98,7 @@ class LoggingReader
   end
 end
 
+# Read typed data from the IO.
 class ReadHelper
   def initialize(io)
     @io = io
