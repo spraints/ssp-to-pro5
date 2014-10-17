@@ -1,0 +1,1 @@
+Inspired by [LyricConverter](https://github.com/chrismbarr/LyricConverter), I wanted to see if I could more accurately parse SongShowPlus song files (sbsong), in order to help us evaluate moving to ProPresenter.
