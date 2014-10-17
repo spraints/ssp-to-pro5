@@ -25,40 +25,45 @@ def parse_io(io)
   result
 end
 
+FieldNames = {
+  38 => "version?",
+   1 => "title",
+   2 => "copyright",
+  36 => "unknown(36)",
+}
+
 def consume(io)
-  r = ReadHelper.new(io)
   consumed = []
-  consumed.push :signature => (signature = r.byte)
-  consumed.push :int => r.int
-  consumed.push :int => r.int
-  if signature == 38
-    new_stuff = []
-    new_stuff.push :b_string => (subsig = r.b_string)
-    new_stuff.push :byte => r.byte
-    new_stuff.push :int => r.int
-    new_stuff.push :int => r.int
-    consumed.push :new_stuff => new_stuff
-  end
-  consumed.push :name => r.b_string
-  consumed.push :byte => r.byte
-  consumed.push :size718 => (size718 = r.int)
-  consumed.push :flags718 => (flags718 = r.int)
-  if signature == 38
-    if subsig == "0718"
-      if flags718 == 20
-        consumed.push :int => r.int
-        consumed.push :copyright => r.string(size718 - 5).force_encoding("UTF-8")
-      else
-        consumed.push :copyright => r.b_string.force_encoding("UTF-8")
-      end
-    elsif subsig == "0707" && size718 > 4
-      consumed.push :copyright => r.b_string
+  parsed = {}
+  r = ReadHelper.new(io)
+  r = LoggingReader.new(r, consumed)
+  loop do
+    type, len, six = r.tag
+    if field = FieldNames[type]
+      parsed[field] = r.b_string
+    else
+      break
     end
-  else
-    consumed.push :copyright => r.b_string
   end
-  consumed.push io.read(100).inspect
-  consumed
+  consumed << io.read(100).inspect
+  [parsed, consumed.reverse.take(4).reverse]
+end
+
+class LoggingReader
+  def initialize(reader, log)
+    @reader = reader
+    @log = log
+  end
+
+  def method_missing(m, *a)
+    @reader.send(m, *a).tap do |result|
+      @log.push m => result
+    end
+  end
+
+  def respond_to?(m)
+    @reader.respond_to?(m) || super
+  end
 end
 
 class ReadHelper
@@ -69,7 +74,11 @@ class ReadHelper
   attr_reader :io
 
   def string(len)
-    io.read(len)
+    io.read(len).force_encoding("UTF-8")
+  end
+
+  def tag
+    [byte, int, int]
   end
 
   def b_string
