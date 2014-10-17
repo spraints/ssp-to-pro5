@@ -18,35 +18,53 @@ def parse(path)
   end
 end
 
-def parse_io(io)
-  result = {}
-  result[:parsed] = consume(io)
-  #result[:rest] = io.read
-  result
-end
-
 FieldNames = {
-  38 => "version?",
    1 => "title",
-   2 => "copyright",
-  36 => "unknown(36)",
+   2 => "artist",
+   3 => "copyright",
+   5 => "ccli#",
+  29 => "keyword",
+  31 => "typical order",
+  37 => "song part",
+  38 => "version",
 }
 
-def consume(io)
+def parse_io(io)
   consumed = []
-  parsed = {}
-  r = ReadHelper.new(io)
-  r = LoggingReader.new(r, consumed)
-  loop do
-    type, len, six = r.tag
-    if field = FieldNames[type]
-      parsed[field] = r.b_string
-    else
-      break
+  parsed = []
+  begin
+    r = ReadHelper.new(io)
+    r = LoggingReader.new(r, consumed)
+    loop do
+      type, len, flags = r.tag
+      parsed.push(data = [])
+      data.push FieldNames[type] || type
+      if flags == 6 || flags == 2
+        data.push(value = r.b_string)
+        len = len - value.bytesize - 2
+      elsif flags == 20
+        data.push(value = r.b_3_string)
+        len = len - value.bytesize - 5
+      elsif len == 1 && flags == 9
+        # nothing
+      elsif len == 5 && flags == 18
+        data.push int
+      else
+        break
+      end
+      if type == 37
+        data.push r.byte
+        data.push r.b_string
+        #data.push [r.byte, len]
+        #data.push io.read(len - 2).inspect
+        #data.push r.string(len - 1)
+      end
     end
+    consumed << io.read(100).inspect
+  rescue => e
+    consumed.push([e.class.name, e.message] + e.backtrace)
   end
-  consumed << io.read(100).inspect
-  [parsed, consumed.reverse.take(4).reverse]
+  {:parsed => parsed, :consumed => consumed.reverse.take(10).reverse}
 end
 
 class LoggingReader
@@ -82,7 +100,14 @@ class ReadHelper
   end
 
   def b_string
-    string(byte)
+    len = byte
+    string(len)
+  end
+
+  def b_3_string
+    len = byte
+    byte ; byte ; byte
+    string(len)
   end
 
   def int
