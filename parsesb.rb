@@ -55,11 +55,20 @@ def parse_io(io)
       elsif len == 5 && flags == 18
         # yes! we made it to the end!
         return parsed if r.int == :eof
+      elsif type == 34
+        # Not sure what this is.
+        #data << len
+        #data << flags
+        # len = 46 -> bytes left = 380
+        # len = 152 -> bytes left = 1461
+        # len = 154 -> bytes left = 1463
+        # len = 177 -> bytes left = 9153, plux XML.
+        # len = 177 -> bytes left = 9166, plux XML.
+        # len = 180 -> bytes left = 9169, plux XML.
+        # len = 201 -> bytes left = 16358, including what looks like XML.
+        #data << "pos: #{io.pos}"
+        return parsed # We don't need anything after this mark.
       else
-        if type == 34
-          # This seems to be a field with a bunch of binary data / flags / background settings, etc.
-          io.pos -= 8
-        end
         break
       end
       if((type == 39 && data.size == 2) || type == 40)
