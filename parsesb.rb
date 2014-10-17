@@ -4,6 +4,9 @@ def main(*files)
   files.each do |file|
     begin
       parsed = parse(file)
+      if ENV["RM_GOOD"] == "y" && parsed.is_a?(Array) && file.start_with?("_problems/")
+        File.unlink(file)
+      end
       puts(YAML.dump(file => parsed))
     rescue => e
       puts "#{file}: #{e}"
@@ -77,7 +80,10 @@ def parse_io(io)
   rescue => e
     consumed.push([e.class.name, e.message] + e.backtrace)
   end
-  {:parsed => parsed, :consumed => consumed.reverse.take(10).reverse}
+  if ENV["DBG"] != "y"
+    consumed = consumed.reverse.take(10).reverse
+  end
+  {:parsed => parsed, :consumed => consumed}
 end
 
 # Intercept calls to the real Reader so that I can see what things have come out of the IO.
