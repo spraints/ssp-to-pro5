@@ -108,7 +108,12 @@ def render_pro5_arrangement(io, song, verse_uuids)
     <groupIDs containerClass="NSMutableArray">
 HEAD
   song[:order].each.with_index do |verse_name, i|
-    io.puts %Q{<NSMutableString serialization-native-value="#{verse_uuids.fetch(verse_name)}" serialization-array-index="#{i}"/>}
+    begin
+      verse_uuid = verse_uuids.fetch(verse_name)
+      io.puts %Q{<NSMutableString serialization-native-value="#{verse_uuid}" serialization-array-index="#{i}"/>}
+    rescue KeyError => e
+      puts "[warning] skipping #{verse_name.inspect}: #{e}"
+    end
   end
   io.puts <<TAIL
     </groupIDs>
