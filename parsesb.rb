@@ -8,10 +8,21 @@ def main(*files)
         if ENV["RM_GOOD"] == "y" && file.start_with?("_problems/")
           File.unlink(file)
         end
-        song = interpret(parsed)
-        pro5 = File.join(File.dirname(file), "#{File.basename(file, ".sbsong")}.pro5")
-        puts "#{pro5} will be:"
-        render_pro5($stdout, song)
+        if ENV["RAW"]
+          puts YAML.dump(file => parsed)
+        else
+          song = interpret(parsed)
+          pro5 = File.join(File.dirname(file), "#{File.basename(file, ".sbsong")}.pro5")
+          if ENV["PREVIEW"]
+            puts "#{pro5} will be:"
+            render_pro5($stdout, song)
+          else
+            puts "#{file} => #{pro5}"
+            File.open(pro5, 'w') do |f|
+              render_pro5(f, song)
+            end
+          end
+        end
       else
         puts(YAML.dump(file => parsed))
       end
