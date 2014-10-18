@@ -4,15 +4,48 @@ def main(*files)
   files.each do |file|
     begin
       parsed = parse(file)
-      if ENV["RM_GOOD"] == "y" && parsed.is_a?(Array) && file.start_with?("_problems/")
-        File.unlink(file)
+      if parsed.is_a?(Array)
+        if ENV["RM_GOOD"] == "y" && file.start_with?("_problems/")
+          File.unlink(file)
+        end
+        song = interpret(parsed)
+        puts(YAML.dump(file => song))
+      else
+        puts(YAML.dump(file => parsed))
       end
-      puts(YAML.dump(file => parsed))
     rescue => e
       puts "#{file}: #{e}"
       puts e.backtrace.take(5)
     end
   end
+end
+
+def interpret(parsed_song)
+  parts = {}
+  order = []
+  keywords = []
+  song = {:parts => parts, :order => order, :keywords => keywords}
+  parsed_song.each do |segment|
+    next unless segment.is_a?(Array)
+    case segment.first
+    when FieldNames[37] # song part
+      _, part_name, _, content = segment
+      if parts.include?(part_name)
+        raise "Already have a #{part_name.inspect} in #{song.inspect}!"
+      end
+      parts[part_name] = content
+    when FieldNames[31] # typical order
+      _, part_name = segment
+      order << part_name
+    when FieldNames[29] # keywords
+      _, keyword = segment
+      keywords << keyword
+    when String
+      name, value = segment
+      song[name] = value
+    end
+  end
+  song
 end
 
 def parse(path)
