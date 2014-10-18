@@ -42,7 +42,7 @@ def parse_io(io)
       type, len, flags = r.tag
       parsed.push(data = [])
       data.push FieldNames[type] || type
-      if flags == 6 || flags == 2
+      if flags == 6 || flags == 2 || (flags & 0x00FF) == 6
         # Just a normal string value in this field.
         data.push(value = r.b_string)
         len = len - value.bytesize - 2
@@ -79,15 +79,13 @@ def parse_io(io)
         return (parsed + [io.read.inspect])
       end
       if type == 37
-        # Verses have a name plus the content of the verse.
-        #data.push len
+        # Verses have a name (read above) plus the content of the verse.
         data.push r.byte
-        if len == 5
-          data.push r.int
+        if flags == 0x01000006
+          data.push r.b_3_string
         else
           data.push r.b_string
         end
-        #data.push data.last.size
       end
     end
     # If we stopped reading, put a snippet of it in the output so I can try to figure out what's next.
@@ -126,9 +124,9 @@ class LoggingReader
   def _format(m, x)
     case m
     when :byte
-      "%02x %d" % [x, x]
+      "%02x (%d)" % [x, x]
     when :int
-      "%08x %d" % [x, x]
+      "%08x (%d)" % [x, x]
     when :tag
       [_format(:byte, x[0]), _format(:int, x[1]), _format(:int, x[2])]
     else
@@ -159,14 +157,8 @@ class ReadHelper
   end
 
   def b_3_string
-    len = byte
-    zeroes = [byte, byte, byte]
-    str = string(len)
-    if zeroes.any? { |n| n != 0 }
-      zeroes + [str]
-    else
-      str
-    end
+    len = int_little_endian
+    string(len)
   end
 
   def int
@@ -175,6 +167,10 @@ class ReadHelper
     else
       guarded_read(4).unpack("N").first
     end
+  end
+
+  def int_little_endian
+    guarded_read(4).unpack("V").first
   end
 
   def byte
