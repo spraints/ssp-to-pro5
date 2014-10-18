@@ -87,6 +87,8 @@ def parse_io(io)
           else
             data.push r.b_string
           end
+        elsif more_flags == 20 || more_flags == 12
+          data.push r.b_3_string
         elsif more_flags == 18
           data.push r.int
         else
@@ -165,6 +167,10 @@ class ReadHelper
 
   def b_3_string
     len = int_little_endian
+    if len > _bytes_left
+      io.pos -= 4
+      return b_string
+    end
     orig_pos = io.pos
     begin
       string(len)
