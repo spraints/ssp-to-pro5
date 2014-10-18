@@ -36,8 +36,7 @@ end
 TimeFormat = "%Y-%m-%dT%H:%M:%S"
 
 def render_pro5(io, song)
-  year = song["copyright"]
-  publisher = song["copyright"]
+  year, publisher = split_copyright(song["copyright"])
   io.puts <<HEAD
 <?xml version="1.0" encoding="UTF-8"?>
 <RVPresentationDocument height="768" width="1024" versionNumber="500" docType="0" creatorCode="1349676880" lastDateUsed="#{Time.now.strftime(TimeFormat)}" usedCount="0" category="Song" resourcesDirectory="" backgroundColor="0 0 0 1" drawingBackgroundColor="0" notes="#{song[:keywords].join(" ")}" artist="#{song["artist"]}" author="#{song["artist"]}" album="" CCLIDisplay="1" CCLIArtistCredits="" CCLISongTitle="#{song["title"]}" CCLIPublisher="#{publisher}" CCLICopyrightInfo="#{year}" CCLILicenseNumber="#{song["ccli#"]}" chordChartPath="">
@@ -49,6 +48,18 @@ HEAD
   io.puts <<TAIL
 </RVPresentationDocument>
 TAIL
+end
+
+def split_copyright(copyright)
+  return ['', ''] unless copyright
+  year = ''
+  publisher = copyright
+  if copyright =~ /(\d{4}) (.*)/
+    year = $1
+    publisher = $2
+  end
+  publisher = publisher.gsub("©", "").strip
+  [year, publisher]
 end
 
 StandardSlides = ["title slide", "blank slide"]
