@@ -9,7 +9,9 @@ def main(*files)
           File.unlink(file)
         end
         song = interpret(parsed)
-        puts(YAML.dump(file => song))
+        pro5 = File.join(File.dirname(file), "#{File.basename(file, ".sbsong")}.pro5")
+        puts "#{pro5} will be:"
+        render_pro5($stdout, song)
       else
         puts(YAML.dump(file => parsed))
       end
@@ -18,6 +20,106 @@ def main(*files)
       puts e.backtrace.take(5)
     end
   end
+end
+
+TimeFormat = "%Y-%m-%dT%H:%M:%S"
+
+def render_pro5(io, song)
+  io.puts <<HEAD
+<?xml version="1.0" encoding="UTF-8"?>
+<RVPresentationDocument height="768" width="1024" versionNumber="500" docType="0" creatorCode="1349676880" lastDateUsed="#{Time.now.strftime(TimeFormat)}" usedCount="0" category="Song" resourcesDirectory="" backgroundColor="0 0 0 1" drawingBackgroundColor="0" notes="#{song[:keywords].join(" ")}" artist="#{song["artist"]}" author="#{song["artist"]}" album="" CCLIDisplay="0" CCLIArtistCredits="" CCLISongTitle="#{song["title"]}" CCLIPublisher="#{song["copyright"]}" CCLICopyrightInfo="#{song["copyright"]}" CCLILicenseNumber="#{song["ccli"]}" chordChartPath="">
+    <_-RVProTransitionObject-_transitionObject transitionType="-1" transitionDuration="1" motionEnabled="0" motionDuration="20" motionSpeed="100" />
+HEAD
+  verse_uuids = Hash.new { |h,k| h[k] = new_uuid }
+  render_pro5_verses(io, song, verse_uuids)
+  render_pro5_arrangement(io, song, verse_uuids)
+  io.puts <<TAIL
+</RVPresentationDocument>
+TAIL
+end
+
+StandardSlides = ["blank slide", "title slide"]
+def render_pro5_verses(io, song, verse_uuids)
+  io.puts %Q{<groups containerClass="NSMutableArray">}
+
+  song[:parts].each.with_index do |(name, lyrics), i|
+    render_pro5_verse(io, name, lyrics, i, verse_uuids[name])
+  end
+  StandardSlides.each.with_index do |name, i|
+    render_pro5_verse(io, name, "", i + song[:parts].size, verse_uuids[name])
+  end
+
+  io.puts %Q{</groups>}
+end
+
+def render_pro5_verse(io, name, lyrics, i, uuid)
+  rtf_data = make_rtf(lyrics)
+  io.puts <<VERSE
+<RVSlideGrouping name="#{name}" uuid="#{uuid}" color="0 0 1 1" serialization-array-index="#{i}">
+  <slides containerClass="NSMutableArray">
+    <RVDisplaySlide backgroundColor="0 0 0 1" enabled="1" highlightColor="0 0 0 0" hotKey="" label="" notes="" slideType="1" sort_index="1" UUID="#{new_uuid}" drawingBackgroundColor="0" chordChartPath="" serialization-array-index="0">
+      <cues containerClass="NSMutableArray"/>
+      <displayElements containerClass="NSMutableArray">
+        <RVTextElement displayDelay="0" displayName="Default" locked="0" persistent="0" typeID="0" fromTemplate="1" bezelRadius="0" drawingFill="0" drawingShadow="1" drawingStroke="0" fillColor="0 0 0 0" rotation="0" source="" adjustsHeightToFit="0" verticalAlignment="0" RTFData="#{rtf_data}" revealType="0" serialization-array-index="0">
+          <_-RVRect3D-_position x="30" y="30" z="0" width="964" height="708"/>
+          <_-D-_serializedShadow containerClass="NSMutableDictionary">
+            <NSMutableString serialization-native-value="{2.8284299, -2.8284299}" serialization-dictionary-key="shadowOffset"/>
+            <NSNumber serialization-native-value="4" serialization-dictionary-key="shadowBlurRadius"/>
+            <NSColor serialization-native-value="0 0 0 1" serialization-dictionary-key="shadowColor"/>
+          </_-D-_serializedShadow>
+          <stroke containerClass="NSMutableDictionary">
+            <NSColor serialization-native-value="0 0 0 0" serialization-dictionary-key="RVShapeElementStrokeColorKey"/>
+            <NSNumber serialization-native-value="0" serialization-dictionary-key="RVShapeElementStrokeWidthKey"/>
+          </stroke>
+        </RVTextElement>
+      </displayElements>
+      <_-RVProTransitionObject-_transitionObject transitionType="-1" transitionDuration="1" motionEnabled="0" motionDuration="20" motionSpeed="100"/>
+    </RVDisplaySlide>
+  </slides>
+</RVSlideGrouping>
+VERSE
+end
+
+def make_rtf(lyrics)
+  # This is an example of the RTF content of a song I made:
+  #    {\rtf1\ansi\ansicpg1252\cocoartf1265\cocoasubrtf210
+  #    \cocoascreenfonts1{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+  #    {\colortbl;\red255\green255\blue255;}
+  #    \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\qc
+  #
+  #    \f0\fs102\fsmilli51200 \cf1 \expnd0\expndtw0\kerning0
+  #    \outl0\strokewidth-20 \strokec0 Up above the world so high\
+  #    Like a diamond in the sky}
+  # This uses stuff from the LyricConverter project:
+  rtf = ['{\\rtf1\\ansi\\ansicpg1252\\cocoartf1038\\cocoasubrtf320',
+      '{\\fonttbl\\f0\\fswiss\\fcharset0 Helvetica;}',
+      '{\\colortbl;\\red255\\green255\\blue255;}',
+      '\\pard\\tx560\\tx1120\\tx1680\\tx2240\\tx2800\\tx3360\\tx3920\\tx4480\\tx5040\\tx5600\\tx6160\\tx6720\\qc\\pardirnatural',
+      '',
+      "\\f0\\fs96 \\cf1 #{lyrics.gsub(/\r\n/, "\\\n")}}"
+  ].join("\n")
+  [rtf].pack("m0")
+end
+
+def render_pro5_arrangement(io, song, verse_uuids)
+  io.puts <<HEAD
+<arrangements containerClass="NSMutableArray">
+  <RVSongArrangement name="typical" uuid="#{new_uuid}" color="0 0 0 0" serialization-array-index="0">
+    <groupIDs containerClass="NSMutableArray">
+HEAD
+  song[:order].each.with_index do |verse_name, i|
+    io.puts %Q{<NSMutableString serialization-native-value="#{verse_uuids.fetch(verse_name)}" serialization-array-index="#{i}"/>}
+  end
+  io.puts <<TAIL
+    </groupIDs>
+  </RVSongArrangement>
+</arrangements>
+TAIL
+end
+
+require "securerandom"
+def new_uuid
+  SecureRandom.uuid.upcase
 end
 
 def interpret(parsed_song)
