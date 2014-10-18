@@ -107,7 +107,7 @@ def make_rtf(lyrics)
       '{\\colortbl;\\red255\\green255\\blue255;}',
       '\\pard\\tx560\\tx1120\\tx1680\\tx2240\\tx2800\\tx3360\\tx3920\\tx4480\\tx5040\\tx5600\\tx6160\\tx6720\\qc\\pardirnatural',
       '',
-      "\\f0\\fs96 \\cf1 #{lyrics.gsub(/\r\n/, "\\\n")}}"
+      "\\f0\\fs96 \\cf1 #{lyrics.to_s.gsub(/\r\n/, "\\\n")}}"
   ].join("\n")
   [rtf].pack("m0")
 end
