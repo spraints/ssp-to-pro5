@@ -69,6 +69,9 @@ def parse_io(io)
         #data << "pos: #{io.pos}"
         return parsed # We don't need anything after this mark.
       else
+        if type == 0
+          io.pos -= 20
+        end
         break
       end
       if((type == 39 && data.size == 2) || type == 40)
@@ -77,15 +80,23 @@ def parse_io(io)
       end
       if type == 37
         # Verses have a name plus the content of the verse.
+        #data.push len
         data.push r.byte
-        data.push r.b_string
+        if len == 5
+          data.push r.int
+        else
+          data.push r.b_string
+        end
+        #data.push data.last.size
       end
     end
     # If we stopped reading, put a snippet of it in the output so I can try to figure out what's next.
     consumed.push(rest = [])
     rest << io.pos
     rest << io.size
-    rest << io.read(100).inspect
+    peek_len = ENV["PEEK"].to_i
+    peek_len = 100 if peek_len < 1
+    rest << io.read(peek_len).inspect
   rescue => e
     consumed.push([e.class.name, e.message] + e.backtrace)
   end
@@ -104,12 +115,25 @@ class LoggingReader
 
   def method_missing(m, *a)
     @reader.send(m, *a).tap do |result|
-      @log.push m => result
+      @log.push m => _format(m, result)
     end
   end
 
   def respond_to?(m)
     @reader.respond_to?(m) || super
+  end
+
+  def _format(m, x)
+    case m
+    when :byte
+      "%02x %d" % [x, x]
+    when :int
+      "%08x %d" % [x, x]
+    when :tag
+      [_format(:byte, x[0]), _format(:int, x[1]), _format(:int, x[2])]
+    else
+      x
+    end
   end
 end
 
