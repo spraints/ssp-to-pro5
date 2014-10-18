@@ -27,7 +27,7 @@ TimeFormat = "%Y-%m-%dT%H:%M:%S"
 def render_pro5(io, song)
   io.puts <<HEAD
 <?xml version="1.0" encoding="UTF-8"?>
-<RVPresentationDocument height="768" width="1024" versionNumber="500" docType="0" creatorCode="1349676880" lastDateUsed="#{Time.now.strftime(TimeFormat)}" usedCount="0" category="Song" resourcesDirectory="" backgroundColor="0 0 0 1" drawingBackgroundColor="0" notes="#{song[:keywords].join(" ")}" artist="#{song["artist"]}" author="#{song["artist"]}" album="" CCLIDisplay="0" CCLIArtistCredits="" CCLISongTitle="#{song["title"]}" CCLIPublisher="#{song["copyright"]}" CCLICopyrightInfo="#{song["copyright"]}" CCLILicenseNumber="#{song["ccli"]}" chordChartPath="">
+<RVPresentationDocument height="768" width="1024" versionNumber="500" docType="0" creatorCode="1349676880" lastDateUsed="#{Time.now.strftime(TimeFormat)}" usedCount="0" category="Song" resourcesDirectory="" backgroundColor="0 0 0 1" drawingBackgroundColor="0" notes="#{song[:keywords].join(" ")}" artist="#{song["artist"]}" author="#{song["artist"]}" album="" CCLIDisplay="0" CCLIArtistCredits="" CCLISongTitle="#{song["title"]}" CCLIPublisher="#{song["copyright"]}" CCLICopyrightInfo="#{song["copyright"]}" CCLILicenseNumber="#{song["ccli#"]}" chordChartPath="">
     <_-RVProTransitionObject-_transitionObject transitionType="-1" transitionDuration="1" motionEnabled="0" motionDuration="20" motionSpeed="100" />
 HEAD
   verse_uuids = Hash.new { |h,k| h[k] = new_uuid }
