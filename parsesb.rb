@@ -36,9 +36,11 @@ end
 TimeFormat = "%Y-%m-%dT%H:%M:%S"
 
 def render_pro5(io, song)
+  year = song["copyright"]
+  publisher = song["copyright"]
   io.puts <<HEAD
 <?xml version="1.0" encoding="UTF-8"?>
-<RVPresentationDocument height="768" width="1024" versionNumber="500" docType="0" creatorCode="1349676880" lastDateUsed="#{Time.now.strftime(TimeFormat)}" usedCount="0" category="Song" resourcesDirectory="" backgroundColor="0 0 0 1" drawingBackgroundColor="0" notes="#{song[:keywords].join(" ")}" artist="#{song["artist"]}" author="#{song["artist"]}" album="" CCLIDisplay="0" CCLIArtistCredits="" CCLISongTitle="#{song["title"]}" CCLIPublisher="#{song["copyright"]}" CCLICopyrightInfo="#{song["copyright"]}" CCLILicenseNumber="#{song["ccli#"]}" chordChartPath="">
+<RVPresentationDocument height="768" width="1024" versionNumber="500" docType="0" creatorCode="1349676880" lastDateUsed="#{Time.now.strftime(TimeFormat)}" usedCount="0" category="Song" resourcesDirectory="" backgroundColor="0 0 0 1" drawingBackgroundColor="0" notes="#{song[:keywords].join(" ")}" artist="#{song["artist"]}" author="#{song["artist"]}" album="" CCLIDisplay="1" CCLIArtistCredits="" CCLISongTitle="#{song["title"]}" CCLIPublisher="#{publisher}" CCLICopyrightInfo="#{year}" CCLILicenseNumber="#{song["ccli#"]}" chordChartPath="">
     <_-RVProTransitionObject-_transitionObject transitionType="-1" transitionDuration="1" motionEnabled="0" motionDuration="20" motionSpeed="100" />
 HEAD
   verse_uuids = Hash.new { |h,k| h[k] = new_uuid }
@@ -49,15 +51,14 @@ HEAD
 TAIL
 end
 
-StandardSlides = ["blank slide", "title slide"]
+StandardSlides = ["title slide", "blank slide"]
 def render_pro5_verses(io, song, verse_uuids)
   io.puts %Q{<groups containerClass="NSMutableArray">}
 
-  song[:parts].each.with_index do |(name, lyrics), i|
+  slides = StandardSlides.map { |name| [name, ""] }
+  slides += song[:parts].to_a
+  slides.each.with_index do |(name, lyrics), i|
     render_pro5_verse(io, name, lyrics, i, verse_uuids[name])
-  end
-  StandardSlides.each.with_index do |name, i|
-    render_pro5_verse(io, name, "", i + song[:parts].size, verse_uuids[name])
   end
 
   io.puts %Q{</groups>}
