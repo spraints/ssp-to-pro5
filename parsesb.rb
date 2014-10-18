@@ -80,11 +80,17 @@ def parse_io(io)
       end
       if type == 37
         # Verses have a name (read above) plus the content of the verse.
-        data.push r.byte
-        if flags == 0x01000006
-          data.push r.b_3_string
+        data.push(more_flags = r.byte)
+        if more_flags == 6
+          if flags == 0x01000006
+            data.push r.b_3_string
+          else
+            data.push r.b_string
+          end
+        elsif more_flags == 18
+          data.push r.int
         else
-          data.push r.b_string
+          break
         end
       end
     end
@@ -159,7 +165,13 @@ class ReadHelper
 
   def b_3_string
     len = int_little_endian
-    string(len)
+    orig_pos = io.pos
+    begin
+      string(len)
+    rescue => e
+      io.pos = orig_pos
+      raise
+    end
   end
 
   def int
