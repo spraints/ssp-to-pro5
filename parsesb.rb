@@ -42,7 +42,9 @@ def parse_io(io)
       type, len, flags = r.tag
       parsed.push(data = [])
       data.push FieldNames[type] || type
-      if flags == 6 || flags == 2 || (flags & 0x00FF) == 6
+      if type == 36 && flags == 2 && flags == 2
+        data.push r.byte
+      elsif flags == 6 || flags == 2 || (flags & 0x00FF) == 6
         # Just a normal string value in this field.
         data.push(value = r.b_string)
         len = len - value.bytesize - 2
