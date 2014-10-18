@@ -74,7 +74,7 @@ def parse_io(io)
         end
         break
       end
-      if((type == 39 && data.size == 2) || type == 40)
+      if((type == 39 && (data.size == 2 || (len == 5 && flags == 18))) || type == 40)
         # another variant of the end (probably), this time with the last field of the file.
         return (parsed + [io.read.inspect])
       end
@@ -122,6 +122,7 @@ class LoggingReader
   end
 
   def _format(m, x)
+    return x if x.is_a?(Symbol)
     case m
     when :byte
       "%02x (%d)" % [x, x]
