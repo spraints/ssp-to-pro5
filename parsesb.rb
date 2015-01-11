@@ -1,4 +1,7 @@
+require "bundler/setup"
+
 require "yaml"
+require "builder"
 
 def main(*files)
   xml_errors = 0
@@ -42,19 +45,20 @@ end
 
 TimeFormat = "%Y-%m-%dT%H:%M:%S"
 
+def time(t)
+  t.strftime(TimeFormat)
+end
+
 def render_pro5(io, song)
   year, publisher = split_copyright(song["copyright"])
-  io.puts <<HEAD
-<?xml version="1.0" encoding="UTF-8"?>
-<RVPresentationDocument height="768" width="1024" versionNumber="500" docType="0" creatorCode="1349676880" lastDateUsed="#{Time.now.strftime(TimeFormat)}" usedCount="0" category="Song" resourcesDirectory="" backgroundColor="0 0 0 1" drawingBackgroundColor="0" notes="#{song[:keywords].join(" ")}" artist="#{song["artist"]}" author="#{song["artist"]}" album="" CCLIDisplay="1" CCLIArtistCredits="" CCLISongTitle="#{song["title"]}" CCLIPublisher="#{publisher}" CCLICopyrightInfo="#{year}" CCLILicenseNumber="#{song["ccli#"]}" chordChartPath="">
-    <_-RVProTransitionObject-_transitionObject transitionType="-1" transitionDuration="1" motionEnabled="0" motionDuration="20" motionSpeed="100" />
-HEAD
-  verse_uuids = Hash.new { |h,k| h[k] = new_uuid }
-  render_pro5_verses(io, song, verse_uuids)
-  render_pro5_arrangement(io, song, verse_uuids)
-  io.puts <<TAIL
-</RVPresentationDocument>
-TAIL
+  xml = Builder::XmlMarkup.new :target => io
+  xml.instruct!
+  xml.RVPresentationDocument :height => 768, :width => 1024, :versionNumber => 500, :docType => 0, :creatorCode => 1349676880, :lastDateUsed => time(Time.now), :usedCount => 0, :category => "Song", :resourcesDirectory => "", :backgroundColors => "0 0 0 1", :drawingBackgroundColor => "0", :notes => song[:keywords].join(" "), :artist => song["artist"], :author => song["artist"], :album => "", :CCLIDisplay => "1", :CCLIArtistCredits => "", :CCLISongTitle => song["title"], :CCLIPublisher => publisher, :CCLICopyrightInfo => year, :CCLILicenseNumber => song["ccli#"], :chordChartPath => "" do
+    xml.tag! "_-RVProTransitionObject-_transitionObject", :transitionType => "0", :transitionDuration => "1", :motionEnabled => "0", :motionDuration => "20", :motionSpeed => "100"
+    verse_uuids = Hash.new { |h,k| h[k] = new_uuid }
+    render_pro5_verses(xml, song, verse_uuids)
+    render_pro5_arrangement(xml, song, verse_uuids)
+  end
 end
 
 def split_copyright(copyright)
@@ -70,44 +74,40 @@ def split_copyright(copyright)
 end
 
 StandardSlides = ["title slide", "blank slide"]
-def render_pro5_verses(io, song, verse_uuids)
-  io.puts %Q{<groups containerClass="NSMutableArray">}
-
-  slides = StandardSlides.map { |name| [name, ""] }
-  slides += song[:parts].to_a
-  slides.each.with_index do |(name, lyrics), i|
-    render_pro5_verse(io, name, lyrics, i, verse_uuids[name])
+def render_pro5_verses(xml, song, verse_uuids)
+  xml.groups :containerClass => "NSMutableArray" do
+    slides = StandardSlides.map { |name| [name, ""] }
+    slides += song[:parts].to_a
+    slides.each.with_index do |(name, lyrics), i|
+      render_pro5_verse(xml, name, lyrics, i, verse_uuids[name])
+    end
   end
-
-  io.puts %Q{</groups>}
 end
 
-def render_pro5_verse(io, name, lyrics, i, uuid)
+def render_pro5_verse(xml, name, lyrics, i, uuid)
   rtf_data = make_rtf(lyrics)
-  io.puts <<VERSE
-<RVSlideGrouping name="#{name}" uuid="#{uuid}" color="0 0 1 1" serialization-array-index="#{i}">
-  <slides containerClass="NSMutableArray">
-    <RVDisplaySlide backgroundColor="0 0 0 1" enabled="1" highlightColor="0 0 0 0" hotKey="" label="" notes="" slideType="1" sort_index="1" UUID="#{new_uuid}" drawingBackgroundColor="0" chordChartPath="" serialization-array-index="0">
-      <cues containerClass="NSMutableArray"/>
-      <displayElements containerClass="NSMutableArray">
-        <RVTextElement displayDelay="0" displayName="Default" locked="0" persistent="0" typeID="0" fromTemplate="1" bezelRadius="0" drawingFill="0" drawingShadow="1" drawingStroke="0" fillColor="0 0 0 0" rotation="0" source="" adjustsHeightToFit="0" verticalAlignment="0" RTFData="#{rtf_data}" revealType="0" serialization-array-index="0">
-          <_-RVRect3D-_position x="30" y="30" z="0" width="964" height="708"/>
-          <_-D-_serializedShadow containerClass="NSMutableDictionary">
-            <NSMutableString serialization-native-value="{2.8284299, -2.8284299}" serialization-dictionary-key="shadowOffset"/>
-            <NSNumber serialization-native-value="4" serialization-dictionary-key="shadowBlurRadius"/>
-            <NSColor serialization-native-value="0 0 0 1" serialization-dictionary-key="shadowColor"/>
-          </_-D-_serializedShadow>
-          <stroke containerClass="NSMutableDictionary">
-            <NSColor serialization-native-value="0 0 0 0" serialization-dictionary-key="RVShapeElementStrokeColorKey"/>
-            <NSNumber serialization-native-value="0" serialization-dictionary-key="RVShapeElementStrokeWidthKey"/>
-          </stroke>
-        </RVTextElement>
-      </displayElements>
-      <_-RVProTransitionObject-_transitionObject transitionType="-1" transitionDuration="1" motionEnabled="0" motionDuration="20" motionSpeed="100"/>
-    </RVDisplaySlide>
-  </slides>
-</RVSlideGrouping>
-VERSE
+  xml.RVSlideGrouping :name => "#{name}", :uuid => "#{uuid}", :color => "0 0 1 1", "serialization-array-index" => "#{i}" do
+    xml.slides :containerClass => "NSMutableArray" do
+      xml.RVDisplaySlide :backgroundColor => "0 0 0 1", :enabled => "1", :highlightColor => "0 0 0 0", :hotKey => "", :label => "", :notes => "", :slideType => "1", :sort_index => "1", :UUID => "#{new_uuid}", :drawingBackgroundColor => "0", :chordChartPath => "", "serialization-array-index" => "0" do
+        xml.cues :containerClass => "NSMutableArray"
+        xml.displayElements :containerClass => "NSMutableArray" do
+          xml.RVTextElement :displayDelay => "0", :displayName => "Default", :locked => "0", :persistent => "0", :typeID => "0", :fromTemplate => "1", :bezelRadius => "0", :drawingFill => "0", :drawingShadow => "1", :drawingStroke => "0", :fillColor => "0 0 0 0", :rotation => "0", :source => "", :adjustsHeightToFit => "0", :verticalAlignment => "0", :RTFData => "#{rtf_data}", :revealType => "0", "serialization-array-index" => "0" do
+            xml.tag! "_-RVRect3D-_position", :x => "30", :y => "30", :z => "0", :width => "964", :height => "708"
+            xml.tag! "_-D-_serializedShadow", :containerClass => "NSMutableDictionary" do
+              xml.NSMutableString "serialization-native-value" => "{2.8284299, -2.8284299}", "serialization-dictionary-key" => "shadowOffset"
+              xml.NSNumber "serialization-native-value "=> "4", "serialization-dictionary-key" => "shadowBlurRadius"
+              xml.NSColor "serialization-native-value" => "0 0 0 1", "serialization-dictionary-key" => "shadowColor"
+            end
+            xml.stroke :containerClass => "NSMutableDictionary" do
+              xml.NSColor "serialization-native-value" => "0 0 0 0", "serialization-dictionary-key" => "RVShapeElementStrokeColorKey"
+              xml.NSNumber "serialization-native-value" => "0", "serialization-dictionary-key" => "RVShapeElementStrokeWidthKey"
+            end
+          end
+        end
+        xml.tag! "_-RVProTransitionObject-_transitionObject", :transitionType => "-1", :transitionDuration => "1", :motionEnabled => "0", :motionDuration => "20", :motionSpeed => "100"
+      end
+    end
+  end
 end
 
 def make_rtf(lyrics)
@@ -131,25 +131,21 @@ def make_rtf(lyrics)
   [rtf].pack("m0")
 end
 
-def render_pro5_arrangement(io, song, verse_uuids)
-  io.puts <<HEAD
-<arrangements containerClass="NSMutableArray">
-  <RVSongArrangement name="typical" uuid="#{new_uuid}" color="0 0 0 0" serialization-array-index="0">
-    <groupIDs containerClass="NSMutableArray">
-HEAD
-  song[:order].each.with_index do |verse_name, i|
-    begin
-      verse_uuid = verse_uuids.fetch(verse_name)
-      io.puts %Q{<NSMutableString serialization-native-value="#{verse_uuid}" serialization-array-index="#{i}"/>}
-    rescue KeyError => e
-      puts "[warning] skipping #{verse_name.inspect}: #{e}"
+def render_pro5_arrangement(xml, song, verse_uuids)
+  xml.arrangements :containerClass => "NSMutableArray" do
+    xml.RVSongArrangement :name => "typical", :uuid => "#{new_uuid}", :color => "0 0 0 0", "serialization-array-index" => "0" do
+      xml.groupIDs :containerClass => "NSMutableArray" do
+        song[:order].each.with_index do |verse_name, i|
+          begin
+            verse_uuid = verse_uuids.fetch(verse_name)
+            xml.NSMutableString "serialization-native-value" => "#{verse_uuid}",  "serialization-array-index" => "#{i}"
+          rescue KeyError => e
+            puts "[warning] skipping #{verse_name.inspect}: #{e}"
+          end
+        end
+      end
     end
   end
-  io.puts <<TAIL
-    </groupIDs>
-  </RVSongArrangement>
-</arrangements>
-TAIL
 end
 
 require "securerandom"
