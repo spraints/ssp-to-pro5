@@ -21,6 +21,7 @@ def main(*files)
             File.open(pro5, 'w') do |f|
               render_pro5(f, song)
             end
+            system "xmllint", pro5, :out => "/dev/null"
           end
         end
       else
