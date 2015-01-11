@@ -1,6 +1,7 @@
 require "yaml"
 
 def main(*files)
+  xml_errors = 0
   files.each do |file|
     begin
       parsed = parse(file)
@@ -21,7 +22,9 @@ def main(*files)
             File.open(pro5, 'w') do |f|
               render_pro5(f, song)
             end
-            system "xmllint", pro5, :out => "/dev/null"
+            unless system "xmllint", pro5, :out => "/dev/null"
+              xml_errors += 1
+            end
           end
         end
       else
@@ -31,6 +34,9 @@ def main(*files)
       puts "#{file}: #{e}"
       puts e.backtrace.take(5)
     end
+  end
+  if xml_errors > 1
+    puts "#{xml_errors} files were produced with invalid XML!"
   end
 end
 
