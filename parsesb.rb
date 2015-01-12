@@ -53,7 +53,7 @@ def render_pro5(io, song)
   year, publisher = split_copyright(song["copyright"])
   xml = Builder::XmlMarkup.new :target => io
   xml.instruct!
-  xml.RVPresentationDocument :height => 600, :width => 800, :versionNumber => 500, :docType => 0, :creatorCode => 1349676880, :lastDateUsed => time(Time.now), :usedCount => 0, :category => "Song", :resourcesDirectory => "", :backgroundColors => "0 0 0 1", :drawingBackgroundColor => "0", :notes => song[:keywords].join(" "), :artist => song["artist"], :author => song["artist"], :album => "", :CCLIDisplay => "1", :CCLIArtistCredits => "", :CCLISongTitle => song["title"], :CCLIPublisher => publisher, :CCLICopyrightInfo => year, :CCLILicenseNumber => song["ccli#"], :chordChartPath => "" do
+  xml.RVPresentationDocument :height => 768, :width => 1024, :versionNumber => 500, :docType => 0, :creatorCode => 1349676880, :lastDateUsed => time(Time.now), :usedCount => 0, :category => "Song", :resourcesDirectory => "", :backgroundColors => "0 0 0 1", :drawingBackgroundColor => "0", :notes => song[:keywords].join(" "), :artist => song["artist"], :author => song["artist"], :album => "", :CCLIDisplay => "1", :CCLIArtistCredits => "", :CCLISongTitle => song["title"], :CCLIPublisher => publisher, :CCLICopyrightInfo => year, :CCLILicenseNumber => song["ccli#"], :chordChartPath => "" do
     xml.tag! "_-RVProTransitionObject-_transitionObject", :transitionType => "0", :transitionDuration => "1", :motionEnabled => "0", :motionDuration => "20", :motionSpeed => "100"
     verse_uuids = Hash.new { |h,k| h[k] = new_uuid }
     render_pro5_verses(xml, song, verse_uuids)
