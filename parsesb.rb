@@ -135,13 +135,9 @@ def render_pro5_arrangement(xml, song, verse_uuids)
   xml.arrangements :containerClass => "NSMutableArray" do
     xml.RVSongArrangement :name => "typical", :uuid => "#{new_uuid}", :color => "0 0 0 0", "serialization-array-index" => "0" do
       xml.groupIDs :containerClass => "NSMutableArray" do
-        song[:order].each.with_index do |verse_name, i|
-          begin
-            verse_uuid = verse_uuids.fetch(verse_name)
-            xml.NSMutableString "serialization-native-value" => "#{verse_uuid}",  "serialization-array-index" => "#{i}"
-          rescue KeyError => e
-            puts "[warning] skipping #{verse_name.inspect}: #{e}"
-          end
+        verses = song[:order].map { |verse_name| verse_uuids.fetch(verse_name, nil) }
+        verses.compact.each.with_index do |verse_uuid, i|
+          xml.NSMutableString "serialization-native-value" => "#{verse_uuid}",  "serialization-array-index" => "#{i}"
         end
       end
     end
