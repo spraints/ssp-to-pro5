@@ -54,7 +54,8 @@ end
 
 def render_lyrics(io, song)
   io.puts "------------------"
-  io.puts song[:parts].keys.inspect
+  io.puts "order: #{song[:order].inspect}"
+  io.puts "parts: #{song[:parts].keys.inspect}"
   io.puts "------------------"
   song[:order].each do |part|
     io.puts "# #{part}"
@@ -109,8 +110,19 @@ def group_slides(song)
 
   new_parts = {}
   groups.each do |group_name, orig_part_names|
-    new_parts[group_name] = orig_part_names.inject([]) { |a, name| a + (song[:parts][name] || ["MISSING:#{name}"]) }
+    new_parts[group_name] = orig_part_names.inject([]) { |a, name|
+      slide = song[:parts][name]
+      if slide.nil?
+        if name == "blank slide"
+          slide = [""]
+        else
+          slide = ["MISSING:#{name}"]
+        end
+      end
+      a + slide
+    }
   end
+
   (song[:parts].keys - group_members.keys).each do |name|
     new_parts[name] = song[:parts][name]
   end
