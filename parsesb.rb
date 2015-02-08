@@ -169,9 +169,24 @@ def render_pro5_verses(xml, song, verse_uuids)
   end
 end
 
+Pro5Colors = {
+  :black => "0 0 0 1",
+  :blue  => "0 0 1 1",
+  :brown => "0.6000000238418579 0.4000000059604645 0.2000000029802322 1",
+  :cyan  => "0 1 1 1",
+  :green => "0 1 0 1",
+  :magenta => "1 0 1 1",
+  :orange => "1 0.5 0 1",
+  :purple => "0.5 0 0.5 1",
+  :red => "1 0 0 1",
+  :yellow => "1 1 0 1",
+  :white => "1 1 1 1",
+}
+
 def render_pro5_verse(xml, name, lyrics_slides, i, uuid)
+  color = Pro5Colors[Pro5Colors.keys[i + 1]]
   rtf_slides = lyrics_slides.map { |lyrics| make_rtf(lyrics) }
-  xml.RVSlideGrouping :name => "#{name}", :uuid => "#{uuid}", :color => "0 0 1 1", "serialization-array-index" => "#{i}" do
+  xml.RVSlideGrouping :name => "#{name}", :uuid => "#{uuid}", :color => color, "serialization-array-index" => "#{i}" do
     rtf_slides.each do |rtf_data|
       xml.slides :containerClass => "NSMutableArray" do
         xml.RVDisplaySlide :backgroundColor => "0 0 0 1", :enabled => "1", :highlightColor => "0 0 0 0", :hotKey => "", :label => "", :notes => "", :slideType => "1", :sort_index => "1", :UUID => "#{new_uuid}", :drawingBackgroundColor => "0", :chordChartPath => "", "serialization-array-index" => "0" do
