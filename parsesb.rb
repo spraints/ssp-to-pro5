@@ -16,6 +16,9 @@ def main(*files)
           puts YAML.dump(file => parsed)
         else
           song = interpret(parsed)
+          #render_lyrics($stdout, song)
+          song = group_slides(song)
+          #render_lyrics($stdout, song)
           pro5 = File.join(File.dirname(file), "#{File.basename(file, ".sbsong")}.pro5")
           if ENV["PREVIEW"]
             puts "#{pro5} will be:"
@@ -49,6 +52,76 @@ def time(t)
   t.strftime(TimeFormat)
 end
 
+def render_lyrics(io, song)
+  io.puts "------------------"
+  io.puts song[:parts].keys.inspect
+  io.puts "------------------"
+  song[:order].each do |part|
+    io.puts "# #{part}"
+    if slides = song[:parts][part]
+      slides.each_with_index do |slide, i|
+        io.puts "[#{i}] #{slide}"
+      end
+    else
+      io.puts "(missing)"
+    end
+  end
+end
+
+# Returns a new song, with slides grouped.
+def group_slides(song)
+  infos = Hash.new { |h,k| h[k] = {:pre => Set.new, :post => Set.new} }
+  ordered = song[:order].drop(1)
+  ordered.each_cons(2) do |a,b|
+    infos[a][:post] << b
+    infos[b][:pre]  << a
+  end
+  groups = {}
+  group_members = {}
+  new_order = []
+  ordered.each do |name|
+    if group_name = group_members[name]
+      if groups[group_name].first == name
+        #puts "REPEAT #{group_name} (#{name})"
+        new_order << group_name
+      end
+    else
+      group_name = name
+      new_order << group_name
+      group = groups[group_name] = [name]
+      group_members[name] = group_name
+      cur = infos[name]
+      #puts "NEW GROUP #{name} #{cur}"
+      while cur && cur[:post].size == 1
+        nxt_name = cur[:post].first
+        nxt = infos[nxt_name]
+        if nxt && nxt[:pre].size == 1 && !group.include?(nxt_name)
+          #puts " ... #{nxt_name} #{nxt}"
+          group << nxt_name
+          group_members[nxt_name] = group_name
+          cur = nxt
+        else
+          cur = nil
+        end
+      end
+    end
+  end
+
+  new_parts = {}
+  groups.each do |group_name, orig_part_names|
+    new_parts[group_name] = orig_part_names.inject([]) { |a, name| a + (song[:parts][name] || ["MISSING:#{name}"]) }
+  end
+  (song[:parts].keys - group_members.keys).each do |name|
+    new_parts[name] = song[:parts][name]
+  end
+
+  {
+    :parts => new_parts,
+    :order => new_order,
+    :keywords => song[:keywords],
+  }
+end
+
 def render_pro5(io, song)
   year, publisher = split_copyright(song["copyright"])
   xml = Builder::XmlMarkup.new :target => io
@@ -76,35 +149,37 @@ end
 StandardSlides = ["title slide", "blank slide"]
 def render_pro5_verses(xml, song, verse_uuids)
   xml.groups :containerClass => "NSMutableArray" do
-    slides = StandardSlides.map { |name| [name, ""] }
+    slides = StandardSlides.map { |name| [name, [""]] }
     slides += song[:parts].to_a
-    slides.each.with_index do |(name, lyrics), i|
-      render_pro5_verse(xml, name, lyrics, i, verse_uuids[name])
+    slides.each.with_index do |(name, lyrics_slides), i|
+      render_pro5_verse(xml, name, lyrics_slides, i, verse_uuids[name])
     end
   end
 end
 
-def render_pro5_verse(xml, name, lyrics, i, uuid)
-  rtf_data = make_rtf(lyrics)
+def render_pro5_verse(xml, name, lyrics_slides, i, uuid)
+  rtf_slides = lyrics_slides.map { |lyrics| make_rtf(lyrics) }
   xml.RVSlideGrouping :name => "#{name}", :uuid => "#{uuid}", :color => "0 0 1 1", "serialization-array-index" => "#{i}" do
-    xml.slides :containerClass => "NSMutableArray" do
-      xml.RVDisplaySlide :backgroundColor => "0 0 0 1", :enabled => "1", :highlightColor => "0 0 0 0", :hotKey => "", :label => "", :notes => "", :slideType => "1", :sort_index => "1", :UUID => "#{new_uuid}", :drawingBackgroundColor => "0", :chordChartPath => "", "serialization-array-index" => "0" do
-        xml.cues :containerClass => "NSMutableArray"
-        xml.displayElements :containerClass => "NSMutableArray" do
-          xml.RVTextElement :displayDelay => "0", :displayName => "Default", :locked => "0", :persistent => "0", :typeID => "0", :fromTemplate => "1", :bezelRadius => "0", :drawingFill => "0", :drawingShadow => "1", :drawingStroke => "0", :fillColor => "0 0 0 0", :rotation => "0", :source => "", :adjustsHeightToFit => "0", :verticalAlignment => "0", :RTFData => "#{rtf_data}", :revealType => "0", "serialization-array-index" => "0" do
-            xml.tag! "_-RVRect3D-_position", :x => "30", :y => "30", :z => "0", :width => "964", :height => "708"
-            xml.tag! "_-D-_serializedShadow", :containerClass => "NSMutableDictionary" do
-              xml.NSMutableString "serialization-native-value" => "{2.8284299, -2.8284299}", "serialization-dictionary-key" => "shadowOffset"
-              xml.NSNumber "serialization-native-value "=> "4", "serialization-dictionary-key" => "shadowBlurRadius"
-              xml.NSColor "serialization-native-value" => "0 0 0 1", "serialization-dictionary-key" => "shadowColor"
-            end
-            xml.stroke :containerClass => "NSMutableDictionary" do
-              xml.NSColor "serialization-native-value" => "0 0 0 0", "serialization-dictionary-key" => "RVShapeElementStrokeColorKey"
-              xml.NSNumber "serialization-native-value" => "0", "serialization-dictionary-key" => "RVShapeElementStrokeWidthKey"
+    rtf_slides.each do |rtf_data|
+      xml.slides :containerClass => "NSMutableArray" do
+        xml.RVDisplaySlide :backgroundColor => "0 0 0 1", :enabled => "1", :highlightColor => "0 0 0 0", :hotKey => "", :label => "", :notes => "", :slideType => "1", :sort_index => "1", :UUID => "#{new_uuid}", :drawingBackgroundColor => "0", :chordChartPath => "", "serialization-array-index" => "0" do
+          xml.cues :containerClass => "NSMutableArray"
+          xml.displayElements :containerClass => "NSMutableArray" do
+            xml.RVTextElement :displayDelay => "0", :displayName => "Default", :locked => "0", :persistent => "0", :typeID => "0", :fromTemplate => "1", :bezelRadius => "0", :drawingFill => "0", :drawingShadow => "1", :drawingStroke => "0", :fillColor => "0 0 0 0", :rotation => "0", :source => "", :adjustsHeightToFit => "0", :verticalAlignment => "0", :RTFData => "#{rtf_data}", :revealType => "0", "serialization-array-index" => "0" do
+              xml.tag! "_-RVRect3D-_position", :x => "30", :y => "30", :z => "0", :width => "964", :height => "708"
+              xml.tag! "_-D-_serializedShadow", :containerClass => "NSMutableDictionary" do
+                xml.NSMutableString "serialization-native-value" => "{2.8284299, -2.8284299}", "serialization-dictionary-key" => "shadowOffset"
+                xml.NSNumber "serialization-native-value "=> "4", "serialization-dictionary-key" => "shadowBlurRadius"
+                xml.NSColor "serialization-native-value" => "0 0 0 1", "serialization-dictionary-key" => "shadowColor"
+              end
+              xml.stroke :containerClass => "NSMutableDictionary" do
+                xml.NSColor "serialization-native-value" => "0 0 0 0", "serialization-dictionary-key" => "RVShapeElementStrokeColorKey"
+                xml.NSNumber "serialization-native-value" => "0", "serialization-dictionary-key" => "RVShapeElementStrokeWidthKey"
+              end
             end
           end
+          xml.tag! "_-RVProTransitionObject-_transitionObject", :transitionType => "-1", :transitionDuration => "1", :motionEnabled => "0", :motionDuration => "20", :motionSpeed => "100"
         end
-        xml.tag! "_-RVProTransitionObject-_transitionObject", :transitionType => "-1", :transitionDuration => "1", :motionEnabled => "0", :motionDuration => "20", :motionSpeed => "100"
       end
     end
   end
@@ -149,6 +224,10 @@ def new_uuid
   SecureRandom.uuid.upcase
 end
 
+# Returns a hash with the following keys:
+# * :parts => Hash of name (String) => slides (Array(String))
+# * :order => Array of name (String)
+# * :keywords => Array of String
 def interpret(parsed_song)
   parts = {}
   order = []
@@ -162,7 +241,7 @@ def interpret(parsed_song)
       if parts.include?(part_name)
         raise "Already have a #{part_name.inspect} in #{song.inspect}!"
       end
-      parts[part_name] = content
+      parts[part_name] = [content]
     when FieldNames[31] # typical order
       _, part_name = segment
       order << part_name
