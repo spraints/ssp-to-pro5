@@ -115,6 +115,11 @@ def group_slides(song)
       end
     end
   end
+  ["title slide", "blank slide"].each do |n|
+    if groups[n] && groups[n].size == 1
+      groups.delete n
+    end
+  end
 
   new_parts = {}
   groups.each do |group_name, orig_part_names|
