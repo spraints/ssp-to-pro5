@@ -200,9 +200,9 @@ def render_pro5_verse(xml, name, lyrics_slides, i, uuid)
   color = Pro5Colors[Pro5Colors.keys[i + 1]]
   rtf_slides = lyrics_slides.map { |lyrics| make_rtf(lyrics) }
   xml.RVSlideGrouping :name => "#{name}", :uuid => "#{uuid}", :color => color, "serialization-array-index" => "#{i}" do
-    rtf_slides.each do |rtf_data|
+    rtf_slides.each_with_index do |rtf_data, slide_number|
       xml.slides :containerClass => "NSMutableArray" do
-        xml.RVDisplaySlide :backgroundColor => "0 0 0 1", :enabled => "1", :highlightColor => "0 0 0 0", :hotKey => "", :label => "", :notes => "", :slideType => "1", :sort_index => "1", :UUID => "#{new_uuid}", :drawingBackgroundColor => "0", :chordChartPath => "", "serialization-array-index" => "0" do
+        xml.RVDisplaySlide :backgroundColor => "0 0 0 1", :enabled => "1", :highlightColor => "0 0 0 0", :hotKey => "", :label => "", :notes => "", :slideType => "1", :sort_index => "1", :UUID => "#{new_uuid}", :drawingBackgroundColor => "0", :chordChartPath => "", "serialization-array-index" => slide_number do
           xml.cues :containerClass => "NSMutableArray"
           xml.displayElements :containerClass => "NSMutableArray" do
             xml.RVTextElement :displayDelay => "0", :displayName => "Default", :locked => "0", :persistent => "0", :typeID => "0", :fromTemplate => "1", :bezelRadius => "0", :drawingFill => "0", :drawingShadow => "1", :drawingStroke => "0", :fillColor => "0 0 0 0", :rotation => "0", :source => "", :adjustsHeightToFit => "0", :verticalAlignment => "0", :RTFData => "#{rtf_data}", :revealType => "0", "serialization-array-index" => "0" do
