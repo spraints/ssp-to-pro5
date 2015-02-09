@@ -71,12 +71,20 @@ end
 
 # Returns a new song, with slides grouped.
 def group_slides(song)
+  ordered = song[:order].dup
+  skipped = []
+  skipped.push(ordered.shift) while ordered.any? && ordered.first =~ /(title|blank) slide/
+  unvisited = []
+  unvisited.unshift(ordered.pop) while ordered.any? && ordered.last =~ /(title|blank) slide/
+
   infos = Hash.new { |h,k| h[k] = {:pre => Set.new, :post => Set.new} }
-  ordered = song[:order].drop(1)
   ordered.each_cons(2) do |a,b|
     infos[a][:post] << b
     infos[b][:pre]  << a
   end
+  infos[ordered.first][:pre] << :first
+  infos[ordered.last][:post] << :last
+
   groups = {}
   group_members = {}
   new_order = []
@@ -129,7 +137,7 @@ def group_slides(song)
 
   {
     :parts => new_parts,
-    :order => new_order,
+    :order => skipped + new_order + unvisited,
     :keywords => song[:keywords],
   }
 end
