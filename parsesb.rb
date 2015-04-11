@@ -20,6 +20,7 @@ def main(*files)
           song = group_slides(song)
           #render_lyrics($stdout, song)
           pro5 = File.join(File.dirname(file), "#{File.basename(file, ".sbsong")}.pro5")
+          txt = File.join(File.dirname(file), "#{File.basename(file, ".sbsong")}.txt")
           if ENV["PREVIEW"]
             puts "#{pro5} will be:"
             render_pro5($stdout, song)
@@ -27,6 +28,9 @@ def main(*files)
             puts "#{file} => #{pro5}"
             File.open(pro5, 'w') do |f|
               render_pro5(f, song)
+            end
+            File.open(txt, 'w') do |f|
+              render_text(f, song)
             end
             unless system "xmllint", pro5, :out => "/dev/null"
               xml_errors += 1
@@ -65,6 +69,23 @@ def render_lyrics(io, song)
       end
     else
       io.puts "(missing)"
+    end
+  end
+end
+
+ER = '='*72
+HR = '-'*72
+
+def render_text(io, song)
+  io.puts File.basename(io.path, ".txt").upcase, ER, ""
+  song[:order].each do |part_name|
+    parts = song[:parts][part_name] || []
+    if parts.any? || part_name == "title slide" || part_name == "blank slide"
+      io.puts HR, part_name, HR
+      parts.each do |part|
+        io.puts part, HR
+      end
+      io.puts ""
     end
   end
 end
